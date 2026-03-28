@@ -1,45 +1,49 @@
 /************************************************************************************************************************************************************************
-Version: 1.0.5
-created by Scrounger
+    Version: 1.0.6
+    created by Scrounger
+    enhanced by Jürgen Häußler 2026_03_28
 
-Dieses Skript erzeugt json strings um Wetter Informationen im VIS mit den Material Design Widgets darzustellen
-=========================================================================================================================================================================
+    Dieses Skript erzeugt json strings um Wetter Informationen im VIS mit den Material Design Widgets darzustellen
 
-!!! Voraussetzungen !!!
-* Material Design Widgets               >= 0.3.6
-* DasWetter                             >= 3.0.1
-* weatherunderground                    >= 3.2.1
-* Pollenflug                            >= 1.0.4        (optional in Skript Einstellung de- / aktivierbar)
-* Javascript Adapter                    >= 4.6.1
-* Javascript Adapter NPM Module:        moment, moment-timezone, moment-duration-format, chroma-js
-=========================================================================================================================================================================
+    =========================================================================================================================================================================
+    !!! Voraussetzungen !!!
 
---- Links ---
-* Support:          https://forum.iobroker.net/topic/32232/material-design-widgets-wetter-view
-* Github:           https://github.com/Scrounger/ioBroker.vis-materialdesign/tree/master/examples/Weather
+    * Material Design Widgets >= 0.3.6
+    * DasWetter >= 4.0.0
+    * weatherunderground >= 3.2.1
+    * Pollenflug >= 1.0.4 (optional in Skript Einstellung de- / aktivierbar)
+    * Javascript Adapter >= 4.6.1
+    * Javascript Adapter NPM Module: moment, moment-timezone, moment-duration-format, chroma-js
 
-=========================================================================================================================================================================
+    =========================================================================================================================================================================
 
---- Changelog ---
-* 1.0.0:            Initial release
-* 1.0.1:            Trigger bug fixes
-* 1.0.2:            enable / disable option for Pollenflug Adapter added
-* 1.0.3:            new feature of Material Design Widgets 0.3.6 added: auto show data labels on chart
-* 1.0.4:            bug fix graphs y-Axis range, Javascript Adapter >= 4.6.1 needed, DasWetter >= 3.0.1 needed
-* 1.0.5:            bug fix Windrichtung
+    --- Links ---
+    * Support:          https://forum.iobroker.net/topic/32232/material-design-widgets-wetter-view
+    * Github:           https://github.com/Scrounger/ioBroker.vis-materialdesign/tree/master/examples/Weather
+
+    =========================================================================================================================================================================
+    
+    --- Changelog ---
+    * 1.0.0:            Initial release
+    * 1.0.1:            Trigger bug fixes
+    * 1.0.2:            enable / disable option for Pollenflug Adapter added
+    * 1.0.3:            new feature of Material Design Widgets 0.3.6 added: auto show data labels on chart
+    * 1.0.4:            bug fix graphs y-Axis range, Javascript Adapter >= 4.6.1 needed, DasWetter >= 3.0.1 needed
+    * 1.0.5:            bug fix Windrichtung
+    * 1.0.6:            Anpassung an neue DasWetter API Struktur (JH 2026_03_28)
 
 ************************************************************************************************************************************************************************/
 
 // Skript Einstellungen *************************************************************************************************************************************************
-let dasWetter_Tage = 5;                                                                                         // Anzahl der Tage für Adapter DasWetter die angezeigt werden soll
+let dasWetter_Tage = 5;                                                                                            // Anzahl der Tage für Adapter DasWetter die angezeigt werden soll
 
-let idDatenpunktPrefix = '0_userdata.0'                                                                         // '0_userdata.0' or 'javascript.x'
-let idDatenPunktStrukturPrefix = 'vis.MaterialDesignWidgets.Wetter'                                             // Struktur unter Prefix
+let idDatenpunktPrefix = '0_userdata.0'                                                                            // '0_userdata.0' or 'javascript.x'
+let idDatenPunktStrukturPrefix = 'vis.MaterialDesignWidgets.Wetter'                                                // Struktur unter Prefix
 
-let idSensor_Temperatur = 'linkeddevices.0.Sensoren.Temperatur.Aussen.Temperatur'                               // Temperatur des eigenen Sensor
-let idSensor_Luftfeuchtigkeit = 'linkeddevices.0.Sensoren.Temperatur.Aussen.Luftfeuchtigkeit'                   // Luftfeuchtigkeit des eigenen Sensor
+let idSensor_Temperatur = 'linkeddevices.0.Sensoren.Temperatur.Aussen.Temperatur'                                  // Temperatur des eigenen Sensor
+let idSensor_Luftfeuchtigkeit = 'linkeddevices.0.Sensoren.Temperatur.Aussen.Luftfeuchtigkeit'                      // Luftfeuchtigkeit des eigenen Sensor
 
-let color_graph_temperatur_verlauf = [                                                                          // Farben für Charts - Temperaturverlauf, value = Temperatur
+let color_graph_temperatur_verlauf = [                                                                             // Farben für Charts - Temperaturverlauf, value = Temperatur
     { value: -20, color: '#5b2c6f' },
     { value: 0, color: '#2874a6' },
     { value: 14, color: '#73c6b6' },
@@ -48,42 +52,42 @@ let color_graph_temperatur_verlauf = [                                          
     { value: 35, color: '#FF0000' }
 ]
 
-let color_graph_regenwahrscheinlichkeit = '#0d47a1';                                                            // Farbe Charts - Regenwahrscheinlichkeit
-let color_graph_niederschlag = '#6dd600';                                                                       // Farbe Charts - Niederschlag
+let color_graph_regenwahrscheinlichkeit = '#0d47a1';                                                               // Farbe Charts - Regenwahrscheinlichkeit
+let color_graph_niederschlag = '#6dd600';                                                                          // Farbe Charts - Niederschlag
 
-let enablePollenFlug = true;                                                                                    // PollenFlug Adapter verwenden. Wenn nicht verwendet wird -> im Grid Widget von der View 'Wetter' & 'Wetter_Dialog_View_Day_2' sollte die Anzahl der Spalten für das Chart 'Verlauf' angepasst werden, damit es wieder stimmig aussieht
-let idPollenFlugRegion = 'pollenflug.0.region#112.summary'                                                      // Id des Summary Channels deiner Region
-let pollenFlugFarben = ['#57bb8a', '#94bd77', '#d4c86a', '#e9b861', '#e79a69', '#dd776e', 'red']                // Farben für die Pollenflug darstellung (Werte 0 - 6)
-let pollenFlugText = ['keine', 'kaum', 'gering', 'mäßig', 'mittel', 'hoch', 'stark']                            // Texte für die Pollenflug darstellung (Werte 0 - 6)
+let enablePollenFlug = true;                                                                                       // PollenFlug Adapter verwenden
+let idPollenFlugRegion = 'pollenflug.0.region#112.summary'                                                         // Id des Summary Channels deiner Region
+
+let pollenFlugFarben = ['#57bb8a', '#94bd77', '#d4c86a', '#e9b861', '#e79a69', '#dd776e', 'red']                   // Farben für die Pollenflug darstellung (Werte 0 - 6)
+let pollenFlugText = ['keine', 'kaum', 'gering', 'mäßig', 'mittel', 'hoch', 'stark']                               // Texte für die Pollenflug darstellung (Werte 0 - 6)
 // **********************************************************************************************************************************************************************
 
-
 // Fortgeschrittene Einstellungen ***************************************************************************************************************************************
-let idIconList_Vorschau = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Vorschau.IconList`;              // Datenpunkt für IconList Widget Vorschau
-let idIconList_Vorschau_Chart = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Vorschau.Chart`;           // Datenpunkt für IconList Widget Vorschau
+let idIconList_Vorschau = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Vorschau.IconList`;
+let idIconList_Vorschau_Chart = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Vorschau.Chart`;
 
-let idDialogSchalter = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Dialog.Day_`                        // Schalter Datenpunkt für Dialog Widget Luftfeuchtigkeit (wird pro Tag erzeugt mit angehängter Nummer)
+let idDialogSchalter = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Dialog.Day_`
+let idDatum = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.DatumFormat.Day_`
 
-let idDatum = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.DatumFormat.Day_`                            // Datenpunkt für Formatierung Datum (wird pro Tag erzeugt mit angehängter Nummer)
-let idTemperatur = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Temperatur.Day_`                        // Datenpunkt für List Widget Temperatur (wird pro Tag erzeugt mit angehängter Nummer)
-let idNiederschlag = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Niederschlag.Day_`                    // Datenpunkt für List Widget Niederschlag (wird pro Tag erzeugt mit angehängter Nummer)
-let idLuftfeuchtigkeit = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Luftfeuchtigkeit.Day_`            // Datenpunkt für List Widget Luftfeuchtigkeit (wird pro Tag erzeugt mit angehängter Nummer)
-let idWindgeschwindigkeit = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Windgeschwindigkeit.Day_`      // Datenpunkt für List Widget Windgeschwindigkeit (wird pro Tag erzeugt mit angehängter Nummer)
-let idWindrichtung = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Windrichtung.Day_`                    // Datenpunkt für List Widget Windrichtung (wird pro Tag erzeugt mit angehängter Nummer)
-let idLuftdruck = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Luftdruck.Day_`                          // Datenpunkt für List Widget Luftdruck (wird pro Tag erzeugt mit angehängter Nummer)
-let idSchneefallgrenze = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Schneefallgrenze.Day_`            // Datenpunkt für List Widget Schneefallgrenze (wird pro Tag erzeugt mit angehängter Nummer)
-let idSonne = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Sonne.Day_`                                  // Datenpunkt für List Widget Sonne (wird pro Tag erzeugt mit angehängter Nummer)
-let idMond = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Mond.Day_`                                    // Datenpunkt für List Widget Mond (wird pro Tag erzeugt mit angehängter Nummer)
+let idTemperatur = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Temperatur.Day_`
+let idNiederschlag = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Niederschlag.Day_`
+let idLuftfeuchtigkeit = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Luftfeuchtigkeit.Day_`
+let idWindgeschwindigkeit = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Windgeschwindigkeit.Day_`
+let idWindrichtung = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Windrichtung.Day_`
+let idLuftdruck = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Luftdruck.Day_`
+let idSchneefallgrenze = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Schneefallgrenze.Day_`
+let idSonne = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Sonne.Day_`
+let idMond = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Mond.Day_`
 
-let idBewolkung = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.Bewolkung`                       // Datenpunkt für List Widget Bewölkung (nur aktuell)
-let idUvIndex = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.UV-Index`                          // Datenpunkt für List Widget UV-Index (nur aktuell)
-let idSonneneinstrahlung = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.Sonneneinstrahlung`     // Datenpunkt für List Widget idSonneneinstrahlung (nur aktuell)
-let idMeineSensoren = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.MeineSensoren`               // Datenpunkt für List Widget idSonneneinstrahlung (nur aktuell)
+let idBewolkung = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.Bewolkung`
+let idUvIndex = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.UV-Index`
+let idSonneneinstrahlung = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.Sonneneinstrahlung`
+let idMeineSensoren = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Aktuell.MeineSensoren`
 
-let idChart = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Chart.Day_`                                  // Datenpunkt für Chart Widget Werte des Tages (wird pro Tag erzeugt mit angehängter Nummer)
+let idChart = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Chart.Day_`
 
-let idVisibiltyPollenFlug = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Pollenflug.visible`            // Datenpunkt um Pollenflug views anzuzeigen oder auszublenden
-let idPollenflug = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Pollenflug.Day_`                        // Datenpunkt Pollenflug für Bar Chart Widget (wird für heute und morgen erzeugt)
+let idVisibiltyPollenFlug = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Pollenflug.visible`
+let idPollenflug = `${idDatenpunktPrefix}.${idDatenPunktStrukturPrefix}.Pollenflug.Day_`
 // **********************************************************************************************************************************************************************
 
 // import
@@ -111,11 +115,10 @@ function createData(obj) {
         let vorschauIconList = [];
 
         for (var i = 1; i <= dasWetter_Tage; i++) {
-            let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${i}`;
+            let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${i}`;
 
-            if (existsState(`${idDasWetter}.day_name`)) {
+            if (existsState(`${idDasWetter}.NameOfDay`)) {
                 vorschauIconList.push(createVorschauIconListItem(i));
-
                 createDatumFormatierung(i);
                 createNiederschlag(i, currentHour);
                 createLuftfeuchtigkeit(i);
@@ -126,14 +129,12 @@ function createData(obj) {
                 createSchneefallgrenze(i);
                 createSonne(i);
                 createMond(i);
-
                 createPollenFlug(i);
-
                 createCharts(i);
 
                 mySetState(`${idDialogSchalter}${i}`, false, 'boolean', `Schalter um Dialog für Tag ${i} anzuzeigen`, true);
             } else {
-                console.warn(`Keine Daten für Tag ${i} vorhanden! Reduziere die Anzahl der Tage im Skript, dann wird keine Warnmeldung mehr angezeigt!`);
+                console.warn(`Keine Daten für Tag ${i} vorhanden! Reduziere die Anzahl der Tage im Skript.`);
             }
         }
 
@@ -159,14 +160,12 @@ function createEigeneSensoren() {
     let listForWidget = [];
 
     if (existsState(idSensor_Temperatur)) {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(getState(idSensor_Temperatur).val, 1), ' °C',
-                    formatValue(getState(idSensor_Luftfeuchtigkeit).val, 0), ' %'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(getState(idSensor_Temperatur).val, 1), ' °C',
+                formatValue(getState(idSensor_Luftfeuchtigkeit).val, 0), ' %'
+            )
+        })
     }
 
     mySetState(`${idMeineSensoren}`, JSON.stringify(listForWidget), 'string', `Werte eigener Sensoren aktuell für List Widget`);
@@ -174,52 +173,47 @@ function createEigeneSensoren() {
 
 function createSonneneinstrahlung() {
     let listForWidget = [];
-    listForWidget.push(
-        {
-            rightText: getRightText(
-                formatValue(getState(`weatherunderground.0.forecast.current.solarRadiation`).val, 0), ' w/m²',
-            )
-        }
-    )
+
+    listForWidget.push({
+        rightText: getRightText(
+            formatValue(getState(`weatherunderground.0.forecast.current.solarRadiation`).val, 0), ' w/m²',
+        )
+    })
 
     mySetState(`${idSonneneinstrahlung}`, JSON.stringify(listForWidget), 'string', `Sonneneinstrahlung aktuell für List Widget`);
 }
 
 function createUvIndex() {
     let listForWidget = [];
-    listForWidget.push(
-        {
-            rightText: getRightText(
-                formatValue(getState(`weatherunderground.0.forecast.current.UV`).val, 0), ''
-            )
-        }
-    )
+
+    listForWidget.push({
+        rightText: getRightText(
+            formatValue(getState(`weatherunderground.0.forecast.current.UV`).val, 0), ''
+        )
+    })
 
     mySetState(`${idUvIndex}`, JSON.stringify(listForWidget), 'string', `UV-Index aktuell für List Widget`);
 }
 
 function createBewolkung() {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_1`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastHourly.Hour_1`;
     let listForWidget = [];
-    listForWidget.push(
-        {
-            rightText: getRightText(
-                formatValue(getState(`${idDasWetter}.current.clouds_value`).val, 0), ' %'
-            )
-        }
-    )
+
+    listForWidget.push({
+        rightText: getRightText(
+            formatValue(getState(`${idDasWetter}.clouds`).val, 0), ' %'
+        )
+    })
 
     mySetState(`${idBewolkung}`, JSON.stringify(listForWidget), 'string', `Bewölkung aktuell für List Widget`);
 }
 
 function createDatumFormatierung(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-    let datum = getState(`${idDasWetter}.day_value`).val;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
+    let datum = getState(`${idDasWetter}.date`).val;
     let formatiertesDatum = moment(datum).format("LL");
 
-    mySetState(`${idDatum}${day}`, formatiertesDatum, 'string', `Formatiertes Datum Tag ${day} für Bar Chart Widget`);
+    mySetState(`${idDatum}${day}`, formatiertesDatum, 'string', `Formatiertes Datum Tag ${day}`);
 }
 
 function createPollenFlug(day) {
@@ -242,18 +236,16 @@ function createPollenFlug(day) {
 
                 if (data && data.length > 0) {
                     for (const pollenInfo of data) {
-                        barData.push(
-                            {
-                                label: pollenInfo.Pollen,
-                                value: pollenInfo.Riskindex + 1,
-                                dataColor: pollenFlugFarben[pollenInfo.Riskindex],
-                                valueText: pollenFlugText[pollenInfo.Riskindex]
-                            }
-                        )
+                        barData.push({
+                            label: pollenInfo.Pollen,
+                            value: pollenInfo.Riskindex + 1,
+                            dataColor: pollenFlugFarben[pollenInfo.Riskindex],
+                            valueText: pollenFlugText[pollenInfo.Riskindex]
+                        })
                     }
                 }
 
-                mySetState(`${idPollenflug}${day}`, JSON.stringify(barData), 'string', `Pollenflug Tag ${day} für Bar Chart Widget`);
+                mySetState(`${idPollenflug}${day}`, JSON.stringify(barData), 'string', `Pollenflug Tag ${day}`);
             } else {
                 console.warn(`Datapoint '${idDp}' not exist!`);
             }
@@ -264,292 +256,264 @@ function createPollenFlug(day) {
 }
 
 function createSchneefallgrenze(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let idWeatherUnderground = `weatherunderground.0.forecast.${day - 1}d`;
 
     let listForWidget = [];
-    let grenze = formatValue(getState(`${idDasWetter}.snowline_value`).val, 0)
 
+    let grenze = formatValue(getState(`${idDasWetter}.Snowline`).val, 0)
     let menge = 0;
+
     if (existsState(`${idWeatherUnderground}.snowAllDay`)) {
         menge = getState(`${idWeatherUnderground}.snowAllDay`).val;
     }
 
-    listForWidget.push(
-        {
-            rightText: getRightText(
-                grenze > 0 ? grenze : '-', grenze > 0 ? ' m' : '',
-                menge > 0 ? menge : '', menge > 0 ? ' cm' : ''
-            )
-        }
-    )
+    listForWidget.push({
+        rightText: getRightText(
+            grenze > 0 ? grenze : '-', grenze > 0 ? ' m' : '',
+            menge > 0 ? menge : '', menge > 0 ? ' cm' : ''
+        )
+    })
 
-    mySetState(`${idSchneefallgrenze}${day}`, JSON.stringify(listForWidget), 'string', `Schneefallgrenze Tag ${day} für List Widget`);
+    mySetState(`${idSchneefallgrenze}${day}`, JSON.stringify(listForWidget), 'string', `Schneefallgrenze Tag ${day}`);
 }
 
-
 function createSonne(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let listForWidget = [];
-    listForWidget.push(
-        {
-            rightText: `
-                <div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Aufgang</div>
-                <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
-                    <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${getState(`${idDasWetter}.sun_in`).val}</div>
-                </div>`
-        }
 
-    )
-    listForWidget.push(
-        {
-            rightText: `
-            <div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Untergang</div>
-            <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
-                <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${getState(`${idDasWetter}.sun_out`).val}</div>
-            </div>`
-        }
-    )
+    listForWidget.push({
+        rightText: `<div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Aufgang</div>
+        <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
+            <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${getState(`${idDasWetter}.Sun_in`).val}</div>
+        </div>`
+    })
 
-    mySetState(`${idSonne}${day}`, JSON.stringify(listForWidget), 'string', `Mond Infos Tag ${day} für List Widget`);
+    listForWidget.push({
+        rightText: `<div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Untergang</div>
+        <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
+            <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${getState(`${idDasWetter}.Sun_out`).val}</div>
+        </div>`
+    })
+
+    mySetState(`${idSonne}${day}`, JSON.stringify(listForWidget), 'string', `Sonnen Infos Tag ${day}`);
 }
 
 function createMond(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let listForWidget = [];
-    listForWidget.push(
-        {
-            rightText: `
-                <div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Aufgang</div>
-                <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
-                    <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${getState(`${idDasWetter}.moon_in`).val}</div>
-                </div>`
-        }
 
-    )
-    listForWidget.push(
-        {
-            rightText: `
-            <div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Untergang</div>
-            <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
-                <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${getState(`${idDasWetter}.moon_out`).val}</div>
-            </div>`
-        }
-    )
+    // Sichere Werte mit Fallbacks
+    let moonIn = existsState(`${idDasWetter}.Moon_in`) ? (getState(`${idDasWetter}.Moon_in`).val || '-') : '-';
+    let moonOut = existsState(`${idDasWetter}.Moon_out`) ? (getState(`${idDasWetter}.Moon_out`).val || '-') : '-';
+
+    listForWidget.push({
+        rightText: `<div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Aufgang</div>
+        <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
+            <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${moonIn}</div>
+        </div>`
+    })
+
+    listForWidget.push({
+        rightText: `<div style="color: gray; height: 13px; font-size: 10px; font-family: RobotoCondensed-Light; margin-top: 2px;">Untergang</div>
+        <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
+            <div style="color: #44739e; font-size: 24px; font-family: RobotoCondensed-Regular;">${moonOut}</div>
+        </div>`
+    })
 
     let Beleuchtung = '';
-    let lumi = getState(`${idDasWetter}.moon_desc`).val;
-
-    if (lumi.includes('abneh')) {
-        Beleuchtung = `<div>
-                        <span class="mdi mdi-arrow-down-bold materialdesign-icon-image"></span>
-                        ${getState(`${idDasWetter}.moon_lumi`).val}
-                    </div>`
+    let moonIllumination = existsState(`${idDasWetter}.Moon_illumination`) ? (getState(`${idDasWetter}.Moon_illumination`).val || '-') : '-';
+    
+    // NULL-Check für Moon_desc
+    if (existsState(`${idDasWetter}.Moon_desc`)) {
+        let lumiVal = getState(`${idDasWetter}.Moon_desc`).val;
+        
+        if (lumiVal !== null && lumiVal !== undefined && lumiVal !== '') {
+            if (lumiVal.includes('abneh')) {
+                Beleuchtung = `<div>
+                    <span class="mdi mdi-arrow-down-bold materialdesign-icon-image"></span>
+                    ${moonIllumination}
+                </div>`;
+            } else {
+                Beleuchtung = `<div>
+                    <span class="mdi mdi-arrow-up-bold materialdesign-icon-image"></span>
+                    ${moonIllumination}
+                </div>`;
+            }
+        } else {
+            // Fallback ohne Pfeil
+            Beleuchtung = `<div>${moonIllumination}</div>`;
+        }
     } else {
-        Beleuchtung = `<div>
-                        <span class="mdi mdi-arrow-up-bold materialdesign-icon-image"></span>
-                        ${getState(`${idDasWetter}.moon_lumi`).val}
-                    </div>`
+        // Fallback wenn Moon_desc nicht existiert
+        Beleuchtung = `<div>${moonIllumination}</div>`;
     }
 
-    mySetState(`${idMond}${day}`, JSON.stringify(listForWidget), 'string', `Mond Infos Tag ${day} für List Widget`);
-
-    mySetState(`${idMond}${day}_lumi`, Beleuchtung, 'string', `Mond Beleuchtung Tag ${day} für Html Widget`);
+    mySetState(`${idMond}${day}`, JSON.stringify(listForWidget), 'string', `Mond Infos Tag ${day}`);
+    mySetState(`${idMond}${day}_lumi`, Beleuchtung, 'string', `Mond Beleuchtung Tag ${day}`);
 }
 
-
 function createLuftdruck(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let listForWidget = [];
+
     if (day === 1) {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(getState('weatherunderground.0.forecast.current.pressure').val, 0), '', '', '<font color="#44739e">mbar</font>'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(getState('weatherunderground.0.forecast.current.pressure').val, 0), '', '', '<font color="#44739e">mbar</font>'
+            )
+        })
     } else {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(getState(`${idDasWetter}.pressure_value`).val, 0), ' mbar'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(getState(`${idDasWetter}.Pressure`).val, 0), ' mbar'
+            )
+        })
     }
-    mySetState(`${idLuftdruck}${day}`, JSON.stringify(listForWidget), 'string', `Luftdruck Tag ${day} für List Widget`);
+
+    mySetState(`${idLuftdruck}${day}`, JSON.stringify(listForWidget), 'string', `Luftdruck Tag ${day}`);
 }
 
 function createWindrichtung(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let idWeatherUnderground = `weatherunderground.0.forecast.${day - 1}d`;
 
     let listForWidget = [];
+
     if (day === 1) {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    getState('weatherunderground.0.forecast.current.windDirection').val, ''
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                getState('weatherunderground.0.forecast.current.windDirection').val, ''
+            )
+        })
     } else {
         if (existsState(`${idWeatherUnderground}.windDirection`)) {
-            listForWidget.push(
-                {
-                    rightText: getRightText(
-                        getState(`${idWeatherUnderground}.windDirection`).val, ''
-                    )
-                }
-            )
+            listForWidget.push({
+                rightText: getRightText(
+                    getState(`${idWeatherUnderground}.windDirection`).val, ''
+                )
+            })
         }
     }
-    mySetState(`${idWindrichtung}${day}`, JSON.stringify(listForWidget), 'string', `Windrichtung Tag ${day} für List Widget`);
 
+    mySetState(`${idWindrichtung}${day}`, JSON.stringify(listForWidget), 'string', `Windrichtung Tag ${day}`);
 }
 
 function createWindgeschwindigkeit(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let listForWidget = [];
+
     if (day === 1) {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(getState('weatherunderground.0.forecast.current.wind').val, 0), ' km/h',
-                    `Böen ${formatValue(getState('weatherunderground.0.forecast.current.windGust').val, 0)}`, ' km/h'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(getState('weatherunderground.0.forecast.current.wind').val, 0), ' km/h',
+                `Böen ${formatValue(getState('weatherunderground.0.forecast.current.windGust').val, 0)}`, ' km/h'
+            )
+        })
     } else {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(getState(`${idDasWetter}.wind_value`).val, 0), ' km/h',
-                    `Böen ${formatValue(getState(`${idDasWetter}.windgusts_value`).val, 0)}`, ' km/h'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(getState(`${idDasWetter}.Wind_Speed`).val, 0), ' km/h',
+                `Böen ${formatValue(getState(`${idDasWetter}.Wind_Gust`).val, 0)}`, ' km/h'
+            )
+        })
     }
 
-    mySetState(`${idWindgeschwindigkeit}${day}`, JSON.stringify(listForWidget), 'string', `Windgeschwindigkeit Tag ${day} für List Widget`);
+    mySetState(`${idWindgeschwindigkeit}${day}`, JSON.stringify(listForWidget), 'string', `Windgeschwindigkeit Tag ${day}`);
 }
 
 function createTemperatur(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let listForWidget = [];
+
     if (day === 1) {
         let temp = getState(`weatherunderground.0.forecast.current.temp`).val;
         let feeled = getState(`weatherunderground.0.forecast.current.feelsLike`).val;
 
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(temp, 1), '°C',
-                    (temp !== feeled) ? `gefühlt ${formatValue(feeled, 1)}` : undefined, '°C'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(temp, 1), '°C',
+                (temp !== feeled) ? `gefühlt ${formatValue(feeled, 1)}` : undefined, '°C'
+            )
+        })
     } else {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    formatValue(getState(`${idDasWetter}.tempmax_value`).val, 1), '°C',
-                    `Nachts ${formatValue(getState(`${idDasWetter}.tempmin_value`).val, 1)}`, '°C'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                formatValue(getState(`${idDasWetter}.Temperature_Max`).val, 1), '°C',
+                `Nachts ${formatValue(getState(`${idDasWetter}.Temperature_Min`).val, 1)}`, '°C'
+            )
+        })
     }
 
-    mySetState(`${idTemperatur}${day}`, JSON.stringify(listForWidget), 'string', `Temperatur Tag ${day} für List Widget`);
+    mySetState(`${idTemperatur}${day}`, JSON.stringify(listForWidget), 'string', `Temperatur Tag ${day}`);
 }
 
 function createLuftfeuchtigkeit(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let listForWidget = [];
+
     if (day === 1) {
-        // Aktuelle Daten nehmen
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    getState(`weatherunderground.0.forecast.current.relativeHumidity`).val, ' %',
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                getState(`weatherunderground.0.forecast.current.relativeHumidity`).val, ' %',
+            )
+        })
     } else {
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    getState(`${idDasWetter}.humidity_value`).val, ' %',
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                getState(`${idDasWetter}.Humidity`).val, ' %',
+            )
+        })
     }
 
-    mySetState(`${idLuftfeuchtigkeit}${day}`, JSON.stringify(listForWidget), 'string', `Luftfeuchtigkeit Tag ${day} für List Widget`);
+    mySetState(`${idLuftfeuchtigkeit}${day}`, JSON.stringify(listForWidget), 'string', `Luftfeuchtigkeit Tag ${day}`);
 }
 
 function createNiederschlag(day, currentHour) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let idWeatherUnderground = `weatherunderground.0.forecast.${day - 1}d`;
 
     let listForWidget = [];
 
     if (day === 1) {
-        // Aktuelle Daten nehmen
-        listForWidget.push(
-            {
-                rightText: getRightText(
-                    getState(`weatherunderground.0.forecastHourly.0h.precipitationChance`).val, ' %',
-                    formatValue(getState(`weatherunderground.0.forecast.current.precipitationHour`).val, 1), ' mm'
-                )
-            }
-        )
+        listForWidget.push({
+            rightText: getRightText(
+                getState(`weatherunderground.0.forecastHourly.0h.precipitationChance`).val, ' %',
+                formatValue(getState(`weatherunderground.0.forecast.current.precipitationHour`).val, 1), ' mm'
+            )
+        })
     } else {
         if (existsState(`${idWeatherUnderground}.precipitationChance`)) {
-            // Weahterundergound Daten vorhanden
-            listForWidget.push(
-                {
-                    rightText: getRightText(
-                        getState(`${idWeatherUnderground}.precipitationChance`).val, ' %',
-                        formatValue(getState(`${idWeatherUnderground}.precipitationAllDay`).val, 1), ' mm'
-                    )
-                }
-            )
+            listForWidget.push({
+                rightText: getRightText(
+                    getState(`${idWeatherUnderground}.precipitationChance`).val, ' %',
+                    formatValue(getState(`${idWeatherUnderground}.precipitationAllDay`).val, 1), ' mm'
+                )
+            })
         } else {
-            // Daten von DasWetter nehemen
-            listForWidget.push(
-                {
-                    rightText: getRightText(
-                        getState(`${idDasWetter}.rain_value`).val, ' mm',
-                    )
-                }
-            )
+            listForWidget.push({
+                rightText: getRightText(
+                    getState(`${idDasWetter}.Rain`).val, ' mm',
+                )
+            })
         }
     }
 
-    mySetState(`${idNiederschlag}${day}`, JSON.stringify(listForWidget), 'string', `Niederschlag Tag ${day} für List Widget`);
+    mySetState(`${idNiederschlag}${day}`, JSON.stringify(listForWidget), 'string', `Niederschlag Tag ${day}`);
 }
 
 function getRightText(val1, unitVal1, val2 = undefined, unitVal2 = undefined) {
-    return `
-            <div style="display: flex; align-items: flex-end; justify-content: flex-end;">
-                <div style="color: #44739e; font-size: 30px; font-family: RobotoCondensed-Regular;">${val1}</div>
-                <div style="color: #44739e; font-size: 16px; font-family: RobotoCondensed-Regular; margin-left: 2px; margin-bottom: 4px;">${unitVal1}</div>
-            </div>
-            ${(val2 !== undefined) ? `<div style="color: gray; height: 13px; font-size: 12px; font-family: RobotoCondensed-Light; margin-top: 2px;">${val2}${unitVal2}</div>` : ''}`
+    return `<div style="display: flex; align-items: flex-end; justify-content: flex-end;">
+        <div style="color: #44739e; font-size: 30px; font-family: RobotoCondensed-Regular;">${val1}</div>
+        <div style="color: #44739e; font-size: 16px; font-family: RobotoCondensed-Regular; margin-left: 2px; margin-bottom: 4px;">${unitVal1}</div>
+    </div>
+    ${(val2 !== undefined) ? `<div style="color: gray; height: 13px; font-size: 12px; font-family: RobotoCondensed-Light; margin-top: 2px;">${val2}${unitVal2}</div>` : ''}`
 }
 
 function createCharts(day) {
-    let nowHour = moment().format("H");                                                 // für Weatherunderground da .0h immer jetzt ist
+    let nowHour = moment().format("H");
 
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
+    let idDasWetterBase = `daswetter.0.location_1.ForecastHourly`;
     let idWeatherUndergroundHourly = `weatherunderground.0.forecastHourly`;
     let idWeatherUndergroundDaily = `weatherunderground.0.forecast.${day - 1}d`;
 
@@ -567,18 +531,29 @@ function createCharts(day) {
 
     let regenWahrscheinlichkeit = [];
 
-    //prüfen für wieviele Stunden DasWetter Vorschaudaten hat
+    // Prüfen für wieviele Stunden DasWetter Vorschaudaten hat
     let maxHours = 0;
-    if (existsState(`${idDasWetter}.Hour_24.hour_value`)) {
-        maxHours = 24;
-    } else if (existsState(`${idDasWetter}.Hour_8.hour_value`)) {
-        maxHours = 8;
-    } else {
-        console.warn(`[createDayNiederschlagBarChart] Day ${day} hat keine Vorschaudaten für 24h bzw 8h!`);
+    if (existsState(`${idDasWetterBase}.Hour_1.time`)) {
+        for (let h = 1; h <= 24; h++) {
+            if (existsState(`${idDasWetterBase}.Hour_${h}.time`)) {
+                maxHours = h;
+            } else {
+                break;
+            }
+        }
+    }
+    
+    if (maxHours === 0) {
+        console.warn(`[createCharts] Tag ${day} hat keine stündlichen Vorhersagedaten!`);
+        chart = { axisLabels: [], graphs: [] };
+        mySetState(`${idChart}${day}`, JSON.stringify(chart), 'string', `Tag ${day} Chart`);
+        return;
     }
 
     for (var i = 1; i <= maxHours; i++) {
-        let hour = parseFloat(getState(`${idDasWetter}.Hour_${i}.hour_value`).val.replace(':00'));
+        let idDasWetterHour = `${idDasWetterBase}.Hour_${i}`;
+        let timeStr = getState(`${idDasWetterHour}.time`).val;
+        let hour = parseFloat(timeStr.replace(':00', ''));
 
         if ((maxHours === 24) || maxHours === 8) {
             axisLabels.push(`${hour}h`);
@@ -586,9 +561,8 @@ function createCharts(day) {
             axisLabels.push('');
         }
 
-
-        // Niederschlag Menge
-        let niederschlagVal = getState(`${idDasWetter}.Hour_${i}.rain_value`).val;
+        // Niederschlag
+        let niederschlagVal = getState(`${idDasWetterHour}.rain`).val;
         if (day === 1) {
             let dp = `${idWeatherUndergroundHourly}.${hour - nowHour}h.precipitation`
             if (existsState(dp)) niederschlagVal = getState(dp).val
@@ -602,9 +576,8 @@ function createCharts(day) {
         }
         niederschlag.push(niederschlagVal);
 
-
         // Temperatur
-        let temperaturVal = parseFloat(getState(`${idDasWetter}.Hour_${i}.temp_value`).val);
+        let temperaturVal = parseFloat(getState(`${idDasWetterHour}.temperature`).val);
         if (day === 1) {
             let dp = `${idWeatherUndergroundHourly}.${hour - nowHour}h.temp`
             if (existsState(dp)) temperaturVal = parseFloat(getState(dp).val)
@@ -622,7 +595,6 @@ function createCharts(day) {
         temperatur.push(temperaturVal);
         temperaturColors.push(temperaturGradientColors.getColorByValue(temperaturVal));
 
-
         // Regenwahrscheinlichkeit
         if (existsState(`${idWeatherUndergroundDaily}.precipitationChance`)) {
             let regenwahrscheinlichkeitVal = getState(`${idWeatherUndergroundDaily}.precipitationChance`).val
@@ -633,251 +605,49 @@ function createCharts(day) {
                 let dp = `${idWeatherUndergroundHourly}.${hour + 24 - nowHour}h.precipitationChance`
                 if (day === 2 && existsState(dp)) regenwahrscheinlichkeitVal = getState(dp).val
             }
-
             regenWahrscheinlichkeit.push(regenwahrscheinlichkeitVal);
         }
     }
 
-    graphs.push(
-        {
-            data: temperatur,
-            type: 'line',
-            color: 'gray',
-            legendText: 'Temperatur',
-            line_pointSizeHover: 5,
-            line_pointSize: 0,
-            line_Tension: 0.3,
-            yAxis_show: false,
-            yAxis_gridLines_show: false,
-            yAxis_gridLines_ticks_length: 5,
-            yAxis_min: (temperaturAxisMin < 5) ? Math.ceil((temperaturAxisMin - 5) / 5) * 5 : 0,
-            yAxis_max: Math.ceil((temperaturAxisMax + 5) / 5) * 5,
-            yAxis_step: 5,
-            yAxis_position: 'left',
-            yAxis_appendix: ' °C',
-            yAxis_zeroLineWidth: 0.1,
-            yAxis_zeroLineColor: 'black',
-            displayOrder: 0,
-            tooltip_AppendText: ' °C',
-            datalabel_backgroundColor: temperaturColors,
-            datalabel_color: 'white',
-            datalabel_offset: -10,
-            datalabel_fontFamily: 'RobotoCondensed-Light',
-            datalabel_fontSize: 12,
-            datalabel_borderRadius: 6,
-            datalabel_show: 'auto',
-            line_PointColor: temperaturColors,
-            line_PointColorBorder: temperaturColors,
-            line_PointColorHover: temperaturColors,
-            line_PointColorBorderHover: temperaturColors,
-            use_gradient_color: true,
-            gradient_color: color_graph_temperatur_verlauf,
-            use_line_gradient_fill_color: true,
-            line_gradient_fill_color: temperaturGradientColors.getGradientWithOpacity(40)
-        }
-    )
+    graphs.push({
+        data: temperatur,
+        type: 'line',
+        color: 'gray',
+        legendText: 'Temperatur',
+        line_pointSizeHover: 5,
+        line_pointSize: 0,
+        line_Tension: 0.3,
+        yAxis_show: false,
+        yAxis_gridLines_show: false,
+        yAxis_gridLines_ticks_length: 5,
+        yAxis_min: (temperaturAxisMin < 5) ? Math.ceil((temperaturAxisMin - 5) / 5) * 5 : 0,
+        yAxis_max: Math.ceil((temperaturAxisMax + 5) / 5) * 5,
+        yAxis_step: 5,
+        yAxis_position: 'left',
+        yAxis_appendix: ' °C',
+        yAxis_zeroLineWidth: 0.1,
+        yAxis_zeroLineColor: 'black',
+        displayOrder: 0,
+        tooltip_AppendText: ' °C',
+        datalabel_backgroundColor: temperaturColors,
+        datalabel_color: 'white',
+        datalabel_offset: -10,
+        datalabel_fontFamily: 'RobotoCondensed-Light',
+        datalabel_fontSize: 12,
+        datalabel_borderRadius: 6,
+        datalabel_show: 'auto',
+        line_PointColor: temperaturColors,
+        line_PointColorBorder: temperaturColors,
+        line_PointColorHover: temperaturColors,
+        line_PointColorBorderHover: temperaturColors,
+        use_gradient_color: true,
+        gradient_color: color_graph_temperatur_verlauf,
+        use_line_gradient_fill_color: true,
+        line_gradient_fill_color: temperaturGradientColors.getGradientWithOpacity(40)
+    })
 
     if (regenWahrscheinlichkeit.length > 0) {
-        graphs.push(
-            {
-                data: regenWahrscheinlichkeit,
-                type: 'line',
-                color: color_graph_regenwahrscheinlichkeit,
-                legendText: 'Regenwahrscheinlichkeit',
-                line_UseFillColor: true,
-                line_pointSize: 0,
-                line_pointSizeHover: 5,
-                yAxis_min: 0,
-                yAxis_max: 100,
-                yAxis_maxSteps: 10,
-                yAxis_position: 'left',
-                yAxis_gridLines_show: false,
-                yAxis_gridLines_border_show: false,
-                yAxis_zeroLineWidth: 0.1,
-                yAxis_zeroLineColor: 'black',
-                yAxis_appendix: ' %',
-                displayOrder: 1,
-                tooltip_AppendText: ' %',
-                datalabel_show: false,
-            }
-        )
-    }
-
-    if (niederschlagMaxVal > 0) {
-        graphs.push(
-            {
-                data: niederschlag,
-                type: 'bar',
-                color: color_graph_niederschlag,
-                legendText: 'Niederschlag',
-                yAxis_min: 0,
-                yAxis_max: Math.ceil((niederschlagMaxVal + 5) / 5) * 5,
-                yAxis_maxSteps: 10,
-                yAxis_position: 'right',
-                yAxis_gridLines_show: false,
-                yAxis_appendix: ' mm',
-                yAxis_gridLines_border_show: false,
-                yAxis_zeroLineWidth: 0.1,
-                yAxis_zeroLineColor: 'black',
-                displayOrder: 1,
-                tooltip_AppendText: ' mm',
-                datalabel_show: false,
-            }
-        )
-    }
-
-    chart = {
-        axisLabels: axisLabels,
-        graphs: graphs
-    }
-
-    mySetState(`${idChart}${day}`, JSON.stringify(chart), 'string', `Tag ${day} für Chart Widget`);
-}
-
-function createVorschauGraph(maxDays) {
-
-    let chart = {};
-    let graphs = [];
-
-    let axisLabels = []
-
-    let temperaturMax = [];
-    let temperaturMin = [];
-    let temperaturMaxColors = [];
-    let temperaturMinColors = [];
-    let temperaturAxisMax = 0;
-    let temperaturAxisMin = 100;
-
-    let regenWahrscheinlichkeit = [];
-
-    let niederschlag = [];
-    let niederschlagMaxVal = 0;
-
-    for (var day = 1; day <= maxDays; day++) {
-        let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
-        let idWeatherUnderground = `weatherunderground.0.forecast.${day - 1}d`;
-
-        if (existsState(`${idDasWetter}.day_name`)) {
-            axisLabels.push((day === 1) ? 'Heute' : getState(`${idDasWetter}.day_name`).val)
-
-            // Temperatur Max 
-            let temperaturMaxVal = parseFloat(getState(`${idDasWetter}.tempmax_value`).val);
-            if (temperaturMaxVal > temperaturAxisMax) {
-                temperaturAxisMax = temperaturMaxVal;
-            }
-            if (temperaturMaxVal < temperaturAxisMin) {
-                temperaturAxisMin = temperaturMaxVal;
-            }
-            temperaturMax.push(temperaturMaxVal);
-            temperaturMaxColors.push(temperaturGradientColors.getColorByValue(temperaturMaxVal));
-
-            // Temperatur Min 
-            let temperaturMinVal = parseFloat(getState(`${idDasWetter}.tempmin_value`).val);
-            if (temperaturMinVal > temperaturAxisMax) {
-                temperaturAxisMax = temperaturMinVal;
-            }
-            if (temperaturMinVal < temperaturAxisMin) {
-                temperaturAxisMin = temperaturMinVal;
-            }
-            temperaturMin.push(temperaturMinVal);
-            temperaturMinColors.push(temperaturGradientColors.getColorByValue(temperaturMinVal));
-
-            // Niederschlag Menge
-            let niederschlagVal = getState(`${idDasWetter}.rain_value`).val;
-
-            if (niederschlagVal > niederschlagMaxVal) {
-                niederschlagMaxVal = niederschlagVal;
-            }
-            niederschlag.push(niederschlagVal);
-
-            //Regenwahrscheinlichkeit
-            if (existsState(`${idWeatherUnderground}.precipitationChance`)) {
-                regenWahrscheinlichkeit.push(getState(`${idWeatherUnderground}.precipitationChance`).val);
-            } else {
-                regenWahrscheinlichkeit.push(0);
-            }
-        } else {
-            console.warn(`[createVorschauGraph] Keine Daten für Tag ${day} vorhanden! Reduziere die Anzahl der Tage im Skript, dann wird keine Warnmeldung mehr angezeigt!`);
-        }
-    }
-
-    graphs.push(
-        {
-            data: temperaturMax,
-            type: 'line',
-            legendText: 'max. Temperatur',
-            line_pointSizeHover: 5,
-            line_pointSize: 0,
-            line_Tension: 0.3,
-            yAxis_id: 0,
-            yAxis_show: false,
-            yAxis_gridLines_show: false,
-            yAxis_gridLines_ticks_length: 5,
-            yAxis_min: (temperaturAxisMin < 5) ? Math.ceil((temperaturAxisMin - 5) / 5) * 5 : 0,
-            yAxis_max: Math.ceil((temperaturAxisMax + 5) / 5) * 5,
-            yAxis_step: 5,
-            yAxis_position: 'left',
-            yAxis_appendix: ' °C',
-            yAxis_zeroLineWidth: 0.1,
-            yAxis_zeroLineColor: 'black',
-            displayOrder: 0,
-            tooltip_AppendText: ' °C',
-            datalabel_backgroundColor: temperaturMaxColors,
-            datalabel_color: 'white',
-            datalabel_offset: -10,
-            datalabel_fontFamily: 'RobotoCondensed-Light',
-            datalabel_fontSize: 12,
-            datalabel_borderRadius: 6,
-            line_PointColor: temperaturMaxColors,
-            line_PointColorBorder: temperaturMaxColors,
-            line_PointColorHover: temperaturMaxColors,
-            line_PointColorBorderHover: temperaturMaxColors,
-            use_gradient_color: true,
-            line_FillBetweenLines: '+1',
-            gradient_color: color_graph_temperatur_verlauf,
-            use_line_gradient_fill_color: true,
-            line_gradient_fill_color: temperaturGradientColors.getGradientWithOpacity(40)
-        }
-    )
-
-    graphs.push(
-        {
-            data: temperaturMin,
-            type: 'line',
-            legendText: 'min. Temperatur',
-            line_pointSizeHover: 5,
-            line_pointSize: 0,
-            line_Tension: 0.3,
-            yAxis_id: 0,
-            yAxis_show: false,
-            yAxis_gridLines_show: false,
-            yAxis_gridLines_ticks_length: 5,
-            yAxis_min: (temperaturAxisMin < 5) ? Math.ceil((temperaturAxisMin - 5) / 5) * 5 : 0,
-            yAxis_max: Math.ceil((temperaturAxisMax + 5) / 5) * 5,
-            yAxis_step: 5,
-            yAxis_position: 'left',
-            yAxis_appendix: ' °C',
-            yAxis_zeroLineWidth: 0.1,
-            yAxis_zeroLineColor: 'black',
-            displayOrder: 0,
-            tooltip_AppendText: ' °C',
-            datalabel_backgroundColor: temperaturMinColors,
-            datalabel_color: 'white',
-            datalabel_offset: -10,
-            datalabel_fontFamily: 'RobotoCondensed-Light',
-            datalabel_fontSize: 12,
-            datalabel_borderRadius: 6,
-            line_PointColor: temperaturMinColors,
-            line_PointColorBorder: temperaturMinColors,
-            line_PointColorHover: temperaturMinColors,
-            line_PointColorBorderHover: temperaturMinColors,
-            use_gradient_color: true,
-            gradient_color: color_graph_temperatur_verlauf
-        }
-    )
-
-    graphs.push(
-        {
+        graphs.push({
             data: regenWahrscheinlichkeit,
             type: 'line',
             color: color_graph_regenwahrscheinlichkeit,
@@ -890,39 +660,224 @@ function createVorschauGraph(maxDays) {
             yAxis_maxSteps: 10,
             yAxis_position: 'left',
             yAxis_gridLines_show: false,
-            yAxis_gridLines_border_show: true,
-            yAxis_distance: 10,
+            yAxis_gridLines_border_show: false,
             yAxis_zeroLineWidth: 0.1,
             yAxis_zeroLineColor: 'black',
             yAxis_appendix: ' %',
             displayOrder: 1,
             tooltip_AppendText: ' %',
             datalabel_show: false,
-        }
-    )
+        })
+    }
 
     if (niederschlagMaxVal > 0) {
-        graphs.push(
-            {
-                data: niederschlag,
-                type: 'bar',
-                color: color_graph_niederschlag,
-                legendText: 'Niederschlag',
-                yAxis_min: 0,
-                yAxis_max: Math.ceil((niederschlagMaxVal + 5) / 5) * 5,
-                yAxis_maxSteps: 10,
-                yAxis_position: 'right',
-                yAxis_gridLines_show: false,
-                yAxis_appendix: ' mm',
-                yAxis_gridLines_border_show: false,
-                yAxis_distance: 10,
-                yAxis_zeroLineWidth: 0.1,
-                yAxis_zeroLineColor: 'black',
-                displayOrder: 1,
-                tooltip_AppendText: ' mm',
-                datalabel_show: false,
+        graphs.push({
+            data: niederschlag,
+            type: 'bar',
+            color: color_graph_niederschlag,
+            legendText: 'Niederschlag',
+            yAxis_min: 0,
+            yAxis_max: Math.ceil((niederschlagMaxVal + 5) / 5) * 5,
+            yAxis_maxSteps: 10,
+            yAxis_position: 'right',
+            yAxis_gridLines_show: false,
+            yAxis_appendix: ' mm',
+            yAxis_gridLines_border_show: false,
+            yAxis_zeroLineWidth: 0.1,
+            yAxis_zeroLineColor: 'black',
+            displayOrder: 1,
+            tooltip_AppendText: ' mm',
+            datalabel_show: false,
+        })
+    }
+
+    chart = {
+        axisLabels: axisLabels,
+        graphs: graphs
+    }
+
+    mySetState(`${idChart}${day}`, JSON.stringify(chart), 'string', `Tag ${day} Chart`);
+}
+
+function createVorschauGraph(maxDays) {
+    let chart = {};
+    let graphs = [];
+    let axisLabels = []
+
+    let temperaturMax = [];
+    let temperaturMin = [];
+    let temperaturMaxColors = [];
+    let temperaturMinColors = [];
+    let temperaturAxisMax = 0;
+    let temperaturAxisMin = 100;
+
+    let regenWahrscheinlichkeit = [];
+    let niederschlag = [];
+    let niederschlagMaxVal = 0;
+
+    for (var day = 1; day <= maxDays; day++) {
+        let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
+        let idWeatherUnderground = `weatherunderground.0.forecast.${day - 1}d`;
+
+        if (existsState(`${idDasWetter}.NameOfDay`)) {
+            axisLabels.push((day === 1) ? 'Heute' : getState(`${idDasWetter}.NameOfDay`).val)
+
+            // Temperatur Max
+            let temperaturMaxVal = parseFloat(getState(`${idDasWetter}.Temperature_Max`).val);
+            if (temperaturMaxVal > temperaturAxisMax) {
+                temperaturAxisMax = temperaturMaxVal;
             }
-        )
+            if (temperaturMaxVal < temperaturAxisMin) {
+                temperaturAxisMin = temperaturMaxVal;
+            }
+            temperaturMax.push(temperaturMaxVal);
+            temperaturMaxColors.push(temperaturGradientColors.getColorByValue(temperaturMaxVal));
+
+            // Temperatur Min
+            let temperaturMinVal = parseFloat(getState(`${idDasWetter}.Temperature_Min`).val);
+            if (temperaturMinVal > temperaturAxisMax) {
+                temperaturAxisMax = temperaturMinVal;
+            }
+            if (temperaturMinVal < temperaturAxisMin) {
+                temperaturAxisMin = temperaturMinVal;
+            }
+            temperaturMin.push(temperaturMinVal);
+            temperaturMinColors.push(temperaturGradientColors.getColorByValue(temperaturMinVal));
+
+            // Niederschlag
+            let niederschlagVal = getState(`${idDasWetter}.Rain`).val;
+            if (niederschlagVal > niederschlagMaxVal) {
+                niederschlagMaxVal = niederschlagVal;
+            }
+            niederschlag.push(niederschlagVal);
+
+            // Regenwahrscheinlichkeit
+            if (existsState(`${idWeatherUnderground}.precipitationChance`)) {
+                regenWahrscheinlichkeit.push(getState(`${idWeatherUnderground}.precipitationChance`).val);
+            } else {
+                regenWahrscheinlichkeit.push(0);
+            }
+        } else {
+            console.warn(`[createVorschauGraph] Keine Daten für Tag ${day}!`);
+        }
+    }
+
+    graphs.push({
+        data: temperaturMax,
+        type: 'line',
+        legendText: 'max. Temperatur',
+        line_pointSizeHover: 5,
+        line_pointSize: 0,
+        line_Tension: 0.3,
+        yAxis_id: 0,
+        yAxis_show: false,
+        yAxis_gridLines_show: false,
+        yAxis_gridLines_ticks_length: 5,
+        yAxis_min: (temperaturAxisMin < 5) ? Math.ceil((temperaturAxisMin - 5) / 5) * 5 : 0,
+        yAxis_max: Math.ceil((temperaturAxisMax + 5) / 5) * 5,
+        yAxis_step: 5,
+        yAxis_position: 'left',
+        yAxis_appendix: ' °C',
+        yAxis_zeroLineWidth: 0.1,
+        yAxis_zeroLineColor: 'black',
+        displayOrder: 0,
+        tooltip_AppendText: ' °C',
+        datalabel_backgroundColor: temperaturMaxColors,
+        datalabel_color: 'white',
+        datalabel_offset: -10,
+        datalabel_fontFamily: 'RobotoCondensed-Light',
+        datalabel_fontSize: 12,
+        datalabel_borderRadius: 6,
+        datalabel_show: 'auto',
+        line_PointColor: temperaturMaxColors,
+        line_PointColorBorder: temperaturMaxColors,
+        line_PointColorHover: temperaturMaxColors,
+        line_PointColorBorderHover: temperaturMaxColors,
+        use_gradient_color: true,
+        line_FillBetweenLines: '+1',
+        gradient_color: color_graph_temperatur_verlauf,
+        use_line_gradient_fill_color: true,
+        line_gradient_fill_color: temperaturGradientColors.getGradientWithOpacity(40)
+    })
+
+    graphs.push({
+        data: temperaturMin,
+        type: 'line',
+        legendText: 'min. Temperatur',
+        line_pointSizeHover: 5,
+        line_pointSize: 0,
+        line_Tension: 0.3,
+        yAxis_id: 0,
+        yAxis_show: false,
+        yAxis_gridLines_show: false,
+        yAxis_gridLines_ticks_length: 5,
+        yAxis_min: (temperaturAxisMin < 5) ? Math.ceil((temperaturAxisMin - 5) / 5) * 5 : 0,
+        yAxis_max: Math.ceil((temperaturAxisMax + 5) / 5) * 5,
+        yAxis_step: 5,
+        yAxis_position: 'left',
+        yAxis_appendix: ' °C',
+        yAxis_zeroLineWidth: 0.1,
+        yAxis_zeroLineColor: 'black',
+        displayOrder: 0,
+        tooltip_AppendText: ' °C',
+        datalabel_backgroundColor: temperaturMinColors,
+        datalabel_color: 'white',
+        datalabel_offset: -10,
+        datalabel_fontFamily: 'RobotoCondensed-Light',
+        datalabel_fontSize: 12,
+        datalabel_borderRadius: 6,
+        datalabel_show: 'auto',
+        line_PointColor: temperaturMinColors,
+        line_PointColorBorder: temperaturMinColors,
+        line_PointColorHover: temperaturMinColors,
+        line_PointColorBorderHover: temperaturMinColors,
+        use_gradient_color: true,
+        gradient_color: color_graph_temperatur_verlauf
+    })
+
+    graphs.push({
+        data: regenWahrscheinlichkeit,
+        type: 'line',
+        color: color_graph_regenwahrscheinlichkeit,
+        legendText: 'Regenwahrscheinlichkeit',
+        line_UseFillColor: true,
+        line_pointSize: 0,
+        line_pointSizeHover: 5,
+        yAxis_min: 0,
+        yAxis_max: 100,
+        yAxis_maxSteps: 10,
+        yAxis_position: 'left',
+        yAxis_gridLines_show: false,
+        yAxis_gridLines_border_show: true,
+        yAxis_distance: 10,
+        yAxis_zeroLineWidth: 0.1,
+        yAxis_zeroLineColor: 'black',
+        yAxis_appendix: ' %',
+        displayOrder: 1,
+        tooltip_AppendText: ' %',
+        datalabel_show: false,
+    })
+
+    if (niederschlagMaxVal > 0) {
+        graphs.push({
+            data: niederschlag,
+            type: 'bar',
+            color: color_graph_niederschlag,
+            legendText: 'Niederschlag',
+            yAxis_min: 0,
+            yAxis_max: Math.ceil((niederschlagMaxVal + 5) / 5) * 5,
+            yAxis_maxSteps: 10,
+            yAxis_position: 'right',
+            yAxis_gridLines_show: false,
+            yAxis_appendix: ' mm',
+            yAxis_gridLines_border_show: false,
+            yAxis_distance: 10,
+            yAxis_zeroLineWidth: 0.1,
+            yAxis_zeroLineColor: 'black',
+            displayOrder: 1,
+            tooltip_AppendText: ' mm',
+            datalabel_show: false,
+        })
     }
 
     chart = {
@@ -934,67 +889,95 @@ function createVorschauGraph(maxDays) {
 }
 
 function createVorschauIconListItem(day) {
-    let idDasWetter = `daswetter.0.NextHours.Location_1.Day_${day}`;
+    let idDasWetter = `daswetter.0.location_1.ForecastDaily.Day_${day}`;
     let idWeatherUnderground = `weatherunderground.0.forecast.${day - 1}d`;
 
-    let title = (day === 1) ? 'Heute' : getState(`${idDasWetter}.day_name`).val
+    let title = (day === 1) ? 'Heute' : (getState(`${idDasWetter}.NameOfDay`).val || '');
+    let regenWahrscheinlichkeit = existsState(`${idWeatherUnderground}.precipitationChance`) ? 
+        `${getState(`${idWeatherUnderground}.precipitationChance`).val} %` : '-';
+    
+    let niederschlagTag = existsState(`${idWeatherUnderground}.precipitationDay`) ? 
+        (getState(`${idWeatherUnderground}.precipitationDay`).val !== null) ? 
+            getState(`${idWeatherUnderground}.precipitationDay`).val : 0 : 
+        (getState(`${idDasWetter}.Rain`).val || 0);
+    
+    let niederschlagNacht = existsState(`${idWeatherUnderground}.precipitationNight`) ? 
+        getState(`${idWeatherUnderground}.precipitationNight`).val : null;
+    
+    let niederschlag = (niederschlagNacht !== null) ? 
+        `${niederschlagTag.toString().replace('.', ',')} / ${niederschlagNacht.toString().replace('.', ',')} mm` : 
+        `${niederschlagTag} mm`;
 
-    let regenWahrscheinlichkeit = existsState(`${idWeatherUnderground}.precipitationChance`) ? `${getState(`${idWeatherUnderground}.precipitationChance`).val} %` : '-';
-    let niederschlagTag = existsState(`${idWeatherUnderground}.precipitationDay`) ? (getState(`${idWeatherUnderground}.precipitationDay`).val !== null) ? getState(`${idWeatherUnderground}.precipitationDay`).val : 0 : getState(`${idDasWetter}.rain_value`).val;
-    let niederschlagNacht = existsState(`${idWeatherUnderground}.precipitationNight`) ? getState(`${idWeatherUnderground}.precipitationNight`).val : null;
+    // Symbol Description - mit NULL-Check
+    let symbolDesc = '';
+    if (existsState(`${idDasWetter}.Weather_Symbol_Description`)) {
+        let desc = getState(`${idDasWetter}.Weather_Symbol_Description`).val;
+        if (desc && desc !== '' && desc !== null) {
+            symbolDesc = desc;
+        }
+    }
 
-    let niederschlag = (niederschlagNacht !== null) ? `${niederschlagTag.toString().replace('.', ',')} / ${niederschlagNacht.toString().replace('.', ',')} mm` : `${niederschlagTag} mm`;
+    // Icon URL mit Fallback
+    let iconUrl = '';
+    if (existsState(`${idDasWetter}.symbol_URL`)) {
+        iconUrl = getState(`${idDasWetter}.symbol_URL`).val || '';
+    }
+
+    // Sichere Werte mit Fallbacks
+    let tempMax = existsState(`${idDasWetter}.Temperature_Max`) ? (getState(`${idDasWetter}.Temperature_Max`).val || 0) : 0;
+    let tempMin = existsState(`${idDasWetter}.Temperature_Min`) ? (getState(`${idDasWetter}.Temperature_Min`).val || 0) : 0;
+    let humidity = existsState(`${idDasWetter}.Humidity`) ? (getState(`${idDasWetter}.Humidity`).val || 0) : 0;
+    let windSpeed = existsState(`${idDasWetter}.Wind_Speed`) ? (getState(`${idDasWetter}.Wind_Speed`).val || 0) : 0;
+    let pressure = existsState(`${idDasWetter}.Pressure`) ? (getState(`${idDasWetter}.Pressure`).val || 0) : 0;
+    let snowline = existsState(`${idDasWetter}.Snowline`) ? (getState(`${idDasWetter}.Snowline`).val || 0) : 0;
+    let sunIn = existsState(`${idDasWetter}.Sun_in`) ? (getState(`${idDasWetter}.Sun_in`).val || '-') : '-';
+    let sunOut = existsState(`${idDasWetter}.Sun_out`) ? (getState(`${idDasWetter}.Sun_out`).val || '-') : '-';
 
     return {
-        text: `
-                    <div style="margin: 0 4px; text-align: center;">${title}
-                        <div style="height: 1px; background: #44739e;"></div>
-                        <div style="color: grey; font-size: 11px; font-family: RobotoCondensed-Light; white-space: break-spaces; margin-top: 5px; text-align: center;">${getState(`${idDasWetter}.symbol_desc`).val}</div>
-                        <div style="color: #44739e; font-family: RobotoCondensed-Regular; font-size: 16px; margin-top: 5px; text-align: center;">${getState(`${idDasWetter}.tempmax_value`).val}°C &nbsp; | &nbsp; ${getState(`${idDasWetter}.tempmin_value`).val}°C</div>
-                        <div style="color: grey; font-size: 11px; font-family: RobotoCondensed-Light; white-space: break-spaces; margin-top: 5px; text-align: center;">${regenWahrscheinlichkeit}</div>
-                    </div>`,
-        image: getState(`${idDasWetter}.iconURL`).val,
-        subText: `
-                        <div style="display: flex; align-items: center; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Luftfeuchtigkeit</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${getState(`${idDasWetter}.humidity_value`).val} %</div>
-                        </div>                 
-                        <div style="display: flex; align-items: flex-start; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Regen</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${niederschlag}</div>
-                        </div>
-                        <div style="display: flex; align-items: center; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Wind</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${getState(`${idDasWetter}.wind_value`).val} km/h</div>
-                        </div>
-                     
-                        <div style="display: flex; align-items: center; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Luftdruck</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${getState(`${idDasWetter}.pressure_value`).val} hPa</div>
-                        </div>
-                        <div style="display: flex; align-items: center; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Schneefall</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${getState(`${idDasWetter}.snowline_value`).val} m</div>
-                        </div>
-                        <div style="display: flex; align-items: center; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Sonnenaufgang</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${getState(`${idDasWetter}.sun_in`).val}</div>
-                        </div>
-                        <div style="display: flex; align-items: center; margin: 0 4px;">
-                            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Sonnenuntergang</div>
-                            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${getState(`${idDasWetter}.sun_out`).val}</div>
-                        </div>                        
-                            `,
+        text: `<div style="margin: 0 4px; text-align: center;">${title}
+            <div style="height: 1px; background: #44739e;"></div>
+            <div style="color: grey; font-size: 11px; font-family: RobotoCondensed-Light; white-space: break-spaces; margin-top: 5px; text-align: center;">${symbolDesc}</div>
+            <div style="color: #44739e; font-family: RobotoCondensed-Regular; font-size: 16px; margin-top: 5px; text-align: center;">${tempMax}°C &nbsp; | &nbsp; ${tempMin}°C</div>
+            <div style="color: grey; font-size: 11px; font-family: RobotoCondensed-Light; white-space: break-spaces; margin-top: 5px; text-align: center;">${regenWahrscheinlichkeit}</div>
+        </div>`,
+        image: iconUrl,
+        subText: `<div style="display: flex; align-items: center; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Luftfeuchtigkeit</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${humidity} %</div>
+        </div>
+        <div style="display: flex; align-items: flex-start; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Regen</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${niederschlag}</div>
+        </div>
+        <div style="display: flex; align-items: center; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Wind</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${windSpeed} km/h</div>
+        </div>
+        <div style="display: flex; align-items: center; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Luftdruck</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${pressure} hPa</div>
+        </div>
+        <div style="display: flex; align-items: center; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Schneefall</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${snowline} m</div>
+        </div>
+        <div style="display: flex; align-items: center; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Sonnenaufgang</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${sunIn}</div>
+        </div>
+        <div style="display: flex; align-items: center; margin: 0 4px;">
+            <div style="flex: 1;text-align: left;font-family: RobotoCondensed-Light; font-size: 11px;">Sonnenuntergang</div>
+            <div style="color: gray; font-family: RobotoCondensed-LightItalic; font-size: 10px;">${sunOut}</div>
+        </div>`,
         listType: (day === 1) ? "text" : "buttonState",
         objectId: `${idDialogSchalter}${day}`,
         buttonStateValue: "true",
         "showValueLabel": "false"
-    }
+    };
 }
 
 // Bei JS Start prüfen
 createData();
-
 
 function getGradientColors(min, max, colorValArray) {
     let delta = max - min;
@@ -1006,6 +989,7 @@ function getGradientColors(min, max, colorValArray) {
         chromaColors.push(item.color);
         chromaDomains.push(item.value / delta);
     }
+
     let chroma = chromaJs.scale(chromaColors).domain(chromaDomains);
 
     return {
